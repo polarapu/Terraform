@@ -1,0 +1,315 @@
+https://github.com/addamstj/Terraform-012.git
+https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+
+
+main.tf
+---------
+provider "aws" {
+    region = "eu-west-2"
+}
+resource "aws_vpc" "myvpc1" {
+    cidr_block = "10.0.0.0/16"
+}
+
+terraform init
+terraform plan
+terraform apply
+terraform destroy
+
+main.tf
+---------
+provider "aws" {
+    region = "eu-west-2"
+}
+resource "aws_vpc" "myvpc1" {
+    cidr_block = "10.0.0.0/16"
+}
+=====================================
+main.tf
+-------
+provider "aws" {
+    region = "eu-west-2"
+}
+
+resource "aws_vpc" "test1vpc" {
+    cidr_block = "192.168.0.0/24"
+    tags = {
+        Name = "TerraformVPC"
+    }
+}
+=================================================
+main.tf
+--------
+provider "aws" {
+  region = "eu-west-2"
+}
+
+
+variable "vpcname" {
+  type    = string
+  default = "myvpc"
+}
+
+variable "sshport" {
+  type    = number
+  default = 22
+}
+
+variable "enabled" {
+  default = true
+}
+
+variable "mylist" {
+  type    = list(string)
+  default = ["Value1", "Value2"]
+}
+
+variable "mymap" {
+  type = map
+  default = {
+    Key1 = "Value1"
+    Key2 = "Value2"
+  }
+}
+
+variable "inputname" {
+  type        = string
+  description = "Set the name of the VPC"
+}
+
+resource "aws_vpc" "myvpc" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    Name = var.inputname
+  }
+}
+
+output "vpcid" {
+  value = aws_vpc.myvpc.id
+}
+}
+
+====================================
+main.tf
+-------
+provider "aws" {
+    region = "eu-west-2"
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-032598fcc7e9d1c7a"
+    instance_type = "t2.micro"
+}
+=====================================
+main.tf
+--------
+
+provider "aws" {
+    region = "eu-west-2"
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-032598fcc7e9d1c7a"
+    instance_type = "t2.micro"
+}
+
+resource "aws_eip" "elasticeip" {
+    instance = aws_instance.ec2.id
+}
+
+output "EIP" {
+    value = aws_eip.elasticeip.public_ip
+}
+
+
+=============================================
+main.tf
+--------
+provider "aws" {
+    region = "eu-west-2"
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-032598fcc7e9d1c7a"
+    instance_type = "t2.micro"
+    security_groups = [aws_security_group.webtraffic.name]
+}
+
+resource "aws_security_group" "webtraffic" {
+    name = "Allow HTTPS"
+
+    ingress {
+        from_port = 443
+        to_port = 443
+        protocol = "TCP"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    egress {
+        from_port = 443
+        to_port = 443
+        protocol = "TCP"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+}
+
+
+====================================================
+main.tf
+--------
+provider "aws" {
+    region = "eu-west-2"
+}
+
+variable "ingressrules" {
+    type = list(number)
+    default = [80,443]
+}
+
+variable "egressrules" {
+    type = list(number)
+    default = [80,443,25,3306,53,8080]
+}
+
+resource "aws_instance" "ec2" {
+    ami = "ami-032598fcc7e9d1c7a"
+    instance_type = "t2.micro"
+    security_groups = [aws_security_group.webtraffic.name]
+}
+
+resource "aws_security_group" "webtraffic" {
+    name = "Allow HTTPS"
+
+    dynamic "ingress" {
+        iterator = port 
+        for_each = var.ingressrules
+        content {
+        from_port = port.value
+        to_port = port.value
+        protocol = "TCP"
+        cidr_blocks = ["0.0.0.0/0"]
+        }
+    }
+
+    dynamic "egress" {
+        iterator = port 
+        for_each = var.egressrules
+        content {
+        from_port = port.value
+        to_port = port.value
+        protocol = "TCP"
+        cidr_blocks = ["0.0.0.0/0"]
+        }
+    }
+}
+==================================================
+server-script.sh
+-----------------
+sudo yum update
+sudo yum install -y httpd
+sudo systemctl start httpd
+sudo systemctl enable httpd
+echo "<h1>Hello from Terraform</h1>" | sudo tee /var/www/html/index.html
+
+main.tf
+--------
+provider "aws" {
+    region = "eu-west-2"
+}
+
+resource "aws_instance" "db" {
+    ami = "ami-032598fcc7e9d1c7a"
+    instance_type = "t2.micro"
+
+    tags = {
+        Name = "DB Server"
+    }
+}
+
+resource "aws_instance" "web" {
+    ami = "ami-032598fcc7e9d1c7a"
+    instance_type = "t2.micro"
+    security_groups = [aws_security_group.web_traffic.name]
+    user_data = file("server-script.sh")
+    tags = {
+        Name = "Web Server"
+    }
+}
+
+resource "aws_eip" "web_ip" {
+    instance = aws_instance.web.id
+}
+
+variable "ingress" {
+    type = list(number)
+    default = [80,443]
+}
+
+variable "egress" {
+    type = list(number)
+    default = [80,443]
+}
+
+resource "aws_security_group" "web_traffic" {
+    name = "Allow Web Traffic"
+
+    dynamic "ingress" {
+        iterator = port
+        for_each = var.ingress
+        content {
+            from_port = port.value
+            to_port = port. value
+            protocol = "TCP"
+            cidr_blocks = ["0.0.0.0/0"]
+        }
+    }
+
+        dynamic "egress" {
+        iterator = port
+        for_each = var.egress
+        content {
+            from_port = port.value
+            to_port = port. value
+            protocol = "TCP"
+            cidr_blocks = ["0.0.0.0/0"]
+        }
+    }
+}
+
+output "PrivateIP" {
+    value = aws_instance.db.private_ip
+}
+
+output "PublicIP" {
+    value = aws_eip.web_ip.public_ip
+}
+========================================================
+
+main.tf
+--------
+provider "aws" {
+    region = "eu-west-2"
+}
+
+resource "aws_db_instance" "myRDS" {
+    name = "myDB"
+    identifier = "my-first-rds"
+    instance_class = "db.t2.micro"
+    engine = "mariadb"
+    engine_version = "10.2.21"
+    username = "bob"
+    password = "password123"
+    port = 3306
+    allocated_storage = 20
+    skip_final_snapshot = true
+
+}
+============================================
+
+
+
+
+
+
+
